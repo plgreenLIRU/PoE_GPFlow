@@ -1,9 +1,8 @@
 import numpy as np
 import gpflow
-import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 
-class PoE_GPFlow:
+class Generalised_PoE:
 
     def __init__(self):
         self.kernel = gpflow.kernels.SquaredExponential()
