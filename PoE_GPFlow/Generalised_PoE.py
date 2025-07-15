@@ -5,7 +5,11 @@ from scipy.optimize import minimize
 class Generalised_PoE:
 
     def __init__(self):
+
+        # We use the squared exponential kernel with 'height' equal to 1 by default
         self.kernel = gpflow.kernels.SquaredExponential()
+        self.kernel.variance.assign(1.0)
+        gpflow.set_trainable(self.kernel.variance, False)
 
     def neg_log_likelihood(self, hyperparams=None):
         """
@@ -43,7 +47,7 @@ class Generalised_PoE:
             self.models.append(gpflow.models.GPR(data=(X_parts[i], Y_parts[i]), kernel=self.kernel))
 
         if allow_seperate_hyperparms:
-            # Optimize hyperparameters for each expert
+            # Optimise hyperparameters for each expert
             for i in range(no_experts):
                 opt = gpflow.optimizers.Scipy()
                 opt.minimize(self.models[i].training_loss, self.models[i].trainable_variables)
@@ -53,22 +57,22 @@ class Generalised_PoE:
                 # Convert hyperparams array to dictionary
                 hyperparams_dict = {
                     'lengthscales': hyperparams[0],
-                    'variance': hyperparams[1],
-                    'likelihood_variance': hyperparams[2]
+                    'likelihood_variance': hyperparams[1]
                 }
                 return self.neg_log_likelihood(hyperparams=hyperparams_dict)
 
             # Initial guess for hyperparameters
-            initial_hyperparams = [1.0, 1.0, 0.1]  # Example: [lengthscales, variance, likelihood_variance]
+            initial_hyperparams = [10, 1]  # [lengthscales, variance, likelihood_variance]
 
             # Bounds for hyperparameters (optional)
-            bounds = [(1e-3, 10.0), (1e-3, 10.0), (1e-6, 1.0)]  # Bounds for lengthscales, variance, and likelihood variance
+            bounds = [(1e-3, 10.0), (1e-6, 1.0)]  # Bounds for lengthscales and likelihood variance
 
-            # Minimize the objective function
+            # Minimise the objective function
             result = minimize(objective, initial_hyperparams, bounds=bounds, method='L-BFGS-B')
 
-            # Set the optimised hyperparameters to all models
-            print("Optimized hyperparameters:", result.x)
+            # Print and store optimised hyperparameters
+            print("Optimised hyperparameters:", result.x)
+            self.joint_hyperparameters = result.x
 
     def predict(self, X_new):
 
