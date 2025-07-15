@@ -5,11 +5,7 @@ from scipy.optimize import minimize
 class Generalised_PoE:
 
     def __init__(self):
-
-        # We use the squared exponential kernel with 'height' equal to 1 by default
-        self.kernel = gpflow.kernels.SquaredExponential()
-        self.kernel.variance.assign(1.0)
-        gpflow.set_trainable(self.kernel.variance, False)
+        pass
 
     def neg_log_likelihood(self, hyperparams=None):
         """
@@ -38,6 +34,14 @@ class Generalised_PoE:
     def train(self, X, Y, no_experts=1, allow_seperate_hyperparms=False):
         self.no_experts = no_experts
 
+        # Dimension of input
+        self.D = X.shape[1]
+
+        # We use the squared exponential kernel with 'height' equal to 1 by default
+        self.kernel = gpflow.kernels.SquaredExponential(lengthscales=np.repeat(10, self.D))
+        self.kernel.variance.assign(1.0)
+        gpflow.set_trainable(self.kernel.variance, False)
+
         # Divide the data into no_experts parts
         X_parts = np.array_split(X, no_experts)
         Y_parts = np.array_split(Y, no_experts)
@@ -56,16 +60,16 @@ class Generalised_PoE:
             def objective(hyperparams):
                 # Convert hyperparams array to dictionary
                 hyperparams_dict = {
-                    'lengthscales': hyperparams[0],
-                    'likelihood_variance': hyperparams[1]
+                    'lengthscales': hyperparams[0:self.D],
+                    'likelihood_variance': hyperparams[-1]
                 }
                 return self.neg_log_likelihood(hyperparams=hyperparams_dict)
 
             # Initial guess for hyperparameters
-            initial_hyperparams = [10, 1]  # [lengthscales, variance, likelihood_variance]
+            initial_hyperparams = [10] * self.D + [1]  # lengthscales and likelihood_variance
 
             # Bounds for hyperparameters (optional)
-            bounds = [(1e-3, 10.0), (1e-6, 1.0)]  # Bounds for lengthscales and likelihood variance
+            bounds = [(1e-3, 10.0)] * self.D +  [(1e-6, 1.0)]  # Bounds for lengthscales and likelihood variance
 
             # Minimise the objective function
             result = minimize(objective, initial_hyperparams, bounds=bounds, method='L-BFGS-B')
